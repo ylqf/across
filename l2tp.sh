@@ -9,7 +9,8 @@ export PATH
 #=======================================================================#
 cur_dir=`pwd`
 
-libreswan_filename="libreswan-3.20"
+libreswan_filename="libreswan-3.27"
+download_root_url="https://dl.lamp.sh/files"
 
 rootness(){
     if [[ $EUID -ne 0 ]]; then
@@ -137,8 +138,6 @@ is_64bit(){
 }
 
 download_file(){
-    local download_root_url="http://dl.teddysun.com/files"
-
     if [ -s ${1} ]; then
         echo "$1 [found]"
     else
@@ -308,8 +307,10 @@ install_l2tp(){
         compile_install
     elif check_sys packageManager yum; then
         echo "Adding the EPEL repository..."
-        yum -y install epel-release
+        yum -y install epel-release yum-utils
         [ ! -f /etc/yum.repos.d/epel.repo ] && echo "Install EPEL repository failed, please check it." && exit 1
+        yum-config-manager --enable epel
+        echo "Adding the EPEL repository complete..."
 
         if centosversion 7; then
             yum -y install ppp libreswan xl2tpd firewalld
@@ -420,7 +421,12 @@ compile_install(){
     tar -zxf ${libreswan_filename}.tar.gz
 
     cd ${cur_dir}/l2tp/${libreswan_filename}
-    echo "WERROR_CFLAGS =" > Makefile.inc.local
+        cat > Makefile.inc.local <<'EOF'
+WERROR_CFLAGS =
+USE_DNSSEC = false
+USE_DH31 = false
+USE_GLIBC_KERN_FLIP_HEADERS = true
+EOF
     make programs && make install
 
     /usr/local/sbin/ipsec --version >/dev/null 2>&1
